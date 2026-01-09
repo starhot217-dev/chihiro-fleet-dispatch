@@ -38,7 +38,7 @@ export interface Order {
   vehicleId?: string;
   createdAt: string;
   price: number;
-  commission?: number; // 平台抽成金額 (10%)
+  commission?: number; // 平台抽成金額
   note?: string;
 }
 
@@ -48,4 +48,14 @@ export interface LineLog {
   message: string;
   type: 'OUTGOING' | 'INCOMING';
   groupName: string;
+}
+
+export interface WalletLog {
+  id: number;
+  vehicleId: string;
+  amount: number;
+  type: 'TOPUP' | 'COMMISSION_DEDUCTION';
+  orderId?: string;
+  timestamp: string;
+  balanceAfter: number;
 }
