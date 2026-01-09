@@ -1,6 +1,6 @@
 
 {
-  "name": "chihiro-dispatch-system",
+  "name": "chihiro-fleet-dispatch",
   "private": true,
   "version": "2.6.0",
   "type": "module",

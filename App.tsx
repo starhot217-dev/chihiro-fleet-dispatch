@@ -89,8 +89,8 @@ const App: React.FC = () => {
   };
 
   const handleCompleteOrder = (orderId: string) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.COMPLETED } : o));
     const order = orders.find(o => o.id === orderId);
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.COMPLETED } : o));
     if (order?.vehicleId) {
       setVehicles(prev => prev.map(v => v.id === order.vehicleId ? { ...v, status: 'IDLE' } : v));
     }
@@ -147,7 +147,7 @@ const App: React.FC = () => {
       case 'driver': return <DriverSimulator orders={orders} vehicles={vehicles} onCompleteOrder={handleCompleteOrder} />;
       case 'dashboard': return <Dashboard orders={orders} vehicles={vehicles} />;
       case 'dispatch': return <DispatchCenter orders={orders} vehicles={vehicles} onDispatch={handleDispatchToLine} onCancel={(id) => setOrders(prev => prev.filter(o => o.id !== id))} onAddOrder={handleManualAddOrder} pricingConfig={pricingConfig} />;
-      case 'map': return <MapView />;
+      case 'map': return <MapView vehicles={vehicles} />;
       case 'reports': return <Reports orders={orders} />;
       case 'settings': return <Settings config={pricingConfig} onSave={(newConfig) => setPricingConfig(newConfig)} />;
       case 'line': return (
@@ -159,7 +159,7 @@ const App: React.FC = () => {
                  <i className="fab fa-line text-4xl text-[#00b900]"></i>
                  <p className="text-xl font-black">高雄司機大群組 (已連線)</p>
                </div>
-               <p className="text-sm text-emerald-700">自動化機器人已就緒，所有調度中心的「派遣」操作將會自動推送到此群組。</p>
+               <p className="text-sm text-emerald-700 font-medium">自動化機器人已就緒，所有調度中心的「派遣」操作將會自動推送到此群組。</p>
              </div>
           </div>
           <div className="w-[420px] h-full rounded-[4rem] border-[14px] border-slate-900 bg-slate-900 relative shadow-2xl overflow-hidden">
@@ -172,26 +172,41 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="min-h-screen flex bg-slate-50 selection:bg-rose-100 selection:text-rose-700">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="flex-1 ml-64 min-h-screen flex flex-col">
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-10 sticky top-0 z-40">
-          <div className="flex items-center gap-4">
-            <span className="text-rose-600 text-xs font-black uppercase tracking-widest">Chihiro Dispatch v2.6</span>
-            <div className="w-px h-4 bg-slate-200"></div>
-            <h2 className="text-slate-800 font-bold text-sm tracking-tight">{activeTab.toUpperCase()}</h2>
+      <main className="flex-1 ml-64 min-h-screen flex flex-col relative overflow-hidden">
+        {/* Decorative Background Elements */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-rose-50/40 rounded-full blur-[140px] -mr-80 -mt-80 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-rose-50/20 rounded-full blur-[100px] -ml-40 -mb-40 pointer-events-none"></div>
+        
+        <header className="h-20 bg-white/70 backdrop-blur-xl border-b border-slate-100 flex items-center justify-between px-10 sticky top-0 z-40">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-2.5 h-2.5 bg-rose-600 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]"></div>
+              <span className="text-slate-800 text-xs font-black uppercase tracking-[0.2em]">
+                千尋派車系統 v2.6
+              </span>
+            </div>
+            <div className="h-4 w-px bg-slate-200"></div>
+            <h2 className="text-slate-800 font-black text-sm tracking-tight">
+              {activeTab.toUpperCase()}
+            </h2>
           </div>
+          
           <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-xs font-black text-slate-800 leading-none">Dispatcher KHH</p>
-              <p className="text-[9px] font-bold text-rose-500 uppercase mt-1">Authorized Access</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
-              <i className="fas fa-user-gear"></i>
-            </div>
+              <div className="text-right">
+                <p className="text-xs font-black text-slate-800 tracking-tight leading-none">Dispatcher CHIHIRO</p>
+                <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mt-1">Kaohsiung HUB</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-white p-1 shadow-xl shadow-rose-100/50 border border-slate-100 group cursor-pointer hover:scale-110 transition-transform">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Chihiro&backgroundColor=ffdfbf" alt="avatar" className="w-full h-full rounded-[0.8rem] bg-rose-50" />
+              </div>
           </div>
         </header>
-        <div className="flex-1 overflow-auto custom-scrollbar">{renderContent()}</div>
+
+        <div className="flex-1 overflow-auto custom-scrollbar relative z-10">
+          {renderContent()}
+        </div>
       </main>
     </div>
   );
