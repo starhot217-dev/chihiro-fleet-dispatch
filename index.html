@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>千尋派車系統 | 高雄專業調度中心</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>千尋派車系統 | 雲端智能調度中心</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -11,21 +11,21 @@
     body { 
       font-family: 'Noto Sans TC', sans-serif; 
       -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: none;
     }
-    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     
-    @keyframes progress {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(150%); }
+    @keyframes pulse-soft {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
     }
-    #map-canvas { height: 100%; width: 100%; }
-    .gm-style-iw { border-radius: 1rem !important; padding: 0 !important; }
+    .animate-pulse-soft { animation: pulse-soft 2s infinite; }
     
-    /* 修正手機版捲動體驗 */
-    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    /* 地圖視窗微調 */
+    .gm-style-iw { border-radius: 1.5rem !important; padding: 0 !important; }
+    .gm-ui-hover-effect { top: 10px !important; right: 10px !important; }
   </style>
 <script type="importmap">
 {
@@ -41,7 +41,7 @@
 }
 </script>
 </head>
-<body class="bg-slate-50 text-slate-900 overflow-x-hidden">
+<body class="bg-slate-50 text-slate-900">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

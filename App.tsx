@@ -10,44 +10,26 @@ import ClientBooking from './components/ClientBooking';
 import Settings from './components/Settings';
 import Wallet from './components/Wallet';
 import DriverSimulator from './components/DriverSimulator';
-import { INITIAL_ORDERS, MOCK_VEHICLES } from './constants';
+import OperationalRoadmap from './components/OperationalRoadmap';
+import DatabaseSchema from './components/DatabaseSchema';
+import { DataService } from './services/dataService';
 import { Order, OrderStatus, LineLog, Vehicle } from './types';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('client');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('chihiro_orders');
-    return saved ? JSON.parse(saved) : INITIAL_ORDERS;
-  });
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
-    const saved = localStorage.getItem('chihiro_vehicles');
-    return saved ? JSON.parse(saved) : MOCK_VEHICLES;
-  });
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [lineLogs, setLineLogs] = useState<LineLog[]>([]);
   const [currentClientOrderId, setCurrentClientOrderId] = useState<string | null>(null);
+  const [pricingConfig, setPricingConfig] = useState<any>({});
 
-  const [pricingConfig, setPricingConfig] = useState(() => {
-    const saved = localStorage.getItem('chihiro_pricing');
-    return saved ? JSON.parse(saved) : {
-      baseFare: 100,
-      perKm: 25,
-      perMinute: 5,
-      nightSurcharge: 50
-    };
-  });
-
+  // 初始化載入
   useEffect(() => {
-    localStorage.setItem('chihiro_orders', JSON.stringify(orders));
-  }, [orders]);
-
-  useEffect(() => {
-    localStorage.setItem('chihiro_vehicles', JSON.stringify(vehicles));
-  }, [vehicles]);
-
-  useEffect(() => {
-    localStorage.setItem('chihiro_pricing', JSON.stringify(pricingConfig));
-  }, [pricingConfig]);
+    setOrders(DataService.getOrders());
+    setVehicles(DataService.getVehicles());
+    setPricingConfig(DataService.getPricing());
+  }, []);
 
   const handleCreateClientOrder = (orderData: Partial<Order>) => {
     const newOrderId = `ORD-${Math.floor(Math.random() * 900) + 200}`;
@@ -60,9 +42,10 @@ const App: React.FC = () => {
       status: OrderStatus.PENDING,
       createdAt: new Date().toLocaleString('zh-TW'),
       price: orderData.price || 300,
-      commission: Math.round((orderData.price || 300) * 0.1),
+      commission: Math.round((orderData.price || 300) * 0.15), // 預設 15% 抽成
       note: '【車上禁菸、禁檳榔】'
     };
+    DataService.createOrder(newOrder);
     setOrders(prev => [newOrder, ...prev]);
     setCurrentClientOrderId(newOrderId);
   };
@@ -78,28 +61,39 @@ const App: React.FC = () => {
       status: OrderStatus.PENDING,
       createdAt: new Date().toLocaleString('zh-TW'),
       price: orderData.price || 300,
-      commission: Math.round((orderData.price || 300) * 0.1),
+      commission: Math.round((orderData.price || 300) * 0.15),
       note: orderData.note || '【車上禁菸、禁檳榔】'
     };
+    DataService.createOrder(newOrder);
     setOrders(prev => [newOrder, ...prev]);
   };
 
   const handleTopUp = (vehicleId: string, amount: number) => {
-    setVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, walletBalance: v.walletBalance + amount } : v));
+    const updatedVehicles = DataService.updateVehicleWallet(vehicleId, amount);
+    setVehicles(updatedVehicles);
   };
 
   const handleCompleteOrder = (orderId: string) => {
-    const order = orders.find(o => o.id === orderId);
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.COMPLETED } : o));
-    if (order?.vehicleId) {
-      setVehicles(prev => prev.map(v => v.id === order.vehicleId ? { ...v, status: 'IDLE' } : v));
+    const result = DataService.completeOrderAndDeduct(orderId, 0.15); // 使用 15% 服務費
+    
+    if (result.success) {
+      setOrders(DataService.getOrders());
+      setVehicles(DataService.getVehicles());
+      
+      // 模擬推播通知
+      console.log(`訂單 ${orderId} 結案成功。抽成金額：$${result.commission}`);
+    } else {
+      alert(result.message);
     }
   };
 
   const handleDispatchToLine = (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.DISPATCHING } : o));
+    
+    const updatedOrders = DataService.updateOrderStatus(orderId, OrderStatus.DISPATCHING);
+    setOrders(updatedOrders);
+
     const newLog: LineLog = {
       id: Math.random().toString(36).substr(2, 9),
       timestamp: new Date().toLocaleTimeString('zh-TW'),
@@ -117,8 +111,9 @@ const App: React.FC = () => {
       const order = orders.find(o => o.id === orderId);
       if (order && order.status === OrderStatus.DISPATCHING) {
         const targetVehicle = vehicles.find(v => v.status === 'IDLE') || vehicles[0];
-        const commission = order.commission || Math.round(order.price * 0.1);
+        const commission = order.commission || Math.round(order.price * 0.15);
 
+        // 接單時先檢查餘額是否足以支付潛在抽成
         if (targetVehicle.walletBalance < commission) {
           setLineLogs(prev => [...prev, {
             id: Math.random().toString(36).substr(2, 9), timestamp: new Date().toLocaleTimeString('zh-TW'),
@@ -128,8 +123,11 @@ const App: React.FC = () => {
           return;
         }
 
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.ASSIGNED, vehicleId: targetVehicle.id } : o));
-        setVehicles(prev => prev.map(v => v.id === targetVehicle.id ? { ...v, status: 'BUSY', walletBalance: v.walletBalance - commission } : v));
+        const updatedOrders = DataService.updateOrderStatus(orderId, OrderStatus.ASSIGNED, targetVehicle.id);
+        const updatedVehicles = DataService.updateVehicleStatus(targetVehicle.id, 'BUSY');
+
+        setOrders(updatedOrders);
+        setVehicles(updatedVehicles);
         setLineLogs(prev => [...prev, {
           id: Math.random().toString(36).substr(2, 9), timestamp: new Date().toLocaleTimeString('zh-TW'),
           groupName: '高雄司機大群組', type: 'OUTGOING',
@@ -137,6 +135,11 @@ const App: React.FC = () => {
         }]);
       }
     }
+  };
+
+  const handleSaveSettings = (newConfig: any) => {
+    DataService.savePricing(newConfig);
+    setPricingConfig(newConfig);
   };
 
   const renderContent = () => {
@@ -149,17 +152,19 @@ const App: React.FC = () => {
       case 'dispatch': return <DispatchCenter orders={orders} vehicles={vehicles} onDispatch={handleDispatchToLine} onCancel={(id) => setOrders(prev => prev.filter(o => o.id !== id))} onAddOrder={handleManualAddOrder} pricingConfig={pricingConfig} />;
       case 'map': return <MapView vehicles={vehicles} />;
       case 'reports': return <Reports orders={orders} />;
-      case 'settings': return <Settings config={pricingConfig} onSave={(newConfig) => setPricingConfig(newConfig)} />;
+      case 'settings': return <Settings config={pricingConfig} onSave={handleSaveSettings} />;
+      case 'roadmap': return <OperationalRoadmap />;
+      case 'database': return <DatabaseSchema />;
       case 'line': return (
         <div className="flex flex-col lg:flex-row h-full p-4 lg:p-8 bg-slate-50 gap-6">
           <div className="flex-1 bg-white rounded-3xl lg:rounded-[3rem] p-6 lg:p-10 overflow-y-auto custom-scrollbar border border-slate-100">
-             <h3 className="text-xl lg:text-2xl font-black mb-4 lg:mb-8">LINE 派單整合</h3>
+             <h3 className="text-xl lg:text-2xl font-black mb-4 lg:mb-8 text-slate-800">LINE 派單整合</h3>
              <div className="p-6 lg:p-8 bg-emerald-50 rounded-2xl lg:rounded-[2rem] border border-emerald-100">
                <div className="flex items-center gap-4 mb-4">
                  <i className="fab fa-line text-3xl lg:text-4xl text-[#00b900]"></i>
-                 <p className="text-lg lg:text-xl font-black">高雄司機大群組 (已連線)</p>
+                 <p className="text-lg lg:text-xl font-black text-slate-800">高雄司機大群組 (已連線)</p>
                </div>
-               <p className="text-xs lg:text-sm text-emerald-700 font-medium">自動化機器人已就緒，所有調度中心的「派遣」操作將會自動推送到此群組。</p>
+               <p className="text-xs lg:text-sm text-emerald-700 font-medium leading-relaxed">自動化機器人已就緒。調度員在「派遣中心」的每個操作都將自動同步至對應司機群組。</p>
              </div>
           </div>
           <div className="hidden lg:block w-[420px] h-full rounded-[4rem] border-[14px] border-slate-900 bg-slate-900 relative shadow-2xl overflow-hidden">
@@ -177,38 +182,38 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen flex bg-slate-50 selection:bg-rose-100 selection:text-rose-700 overflow-x-hidden">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      <main className="flex-1 md:ml-64 min-h-screen flex flex-col relative">
-        <div className="absolute top-0 right-0 w-[400px] lg:w-[600px] h-[400px] lg:h-[600px] bg-rose-50/40 rounded-full blur-[80px] lg:blur-[140px] -mr-40 lg:-mr-80 -mt-40 lg:-mt-80 pointer-events-none"></div>
+      
+      <main className="flex-1 lg:ml-64 min-h-screen flex flex-col relative transition-all duration-300">
+        <div className="absolute top-0 right-0 w-[400px] lg:w-[600px] h-[400px] lg:h-[600px] bg-rose-50/50 rounded-full blur-[80px] lg:blur-[140px] -mr-40 lg:-mr-80 -mt-40 lg:-mt-80 pointer-events-none"></div>
         
-        <header className="h-16 lg:h-20 bg-white/70 backdrop-blur-xl border-b border-slate-100 flex items-center justify-between px-4 lg:px-10 sticky top-0 z-40">
+        <header className="h-16 lg:h-20 bg-white/80 backdrop-blur-2xl border-b border-slate-100 flex items-center justify-between px-4 lg:px-10 sticky top-0 z-[80]">
           <div className="flex items-center gap-3 lg:gap-6">
-            {/* Mobile Menu Toggle */}
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 active:scale-90 transition-transform"
+              className="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 active:scale-95 transition-all"
             >
               <i className="fas fa-bars"></i>
             </button>
 
-            <div className="flex items-center gap-2 lg:gap-3">
-              <div className="w-2 lg:w-2.5 h-2 lg:h-2.5 bg-rose-600 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]"></div>
-              <span className="text-slate-800 text-[10px] lg:text-xs font-black uppercase tracking-[0.1em] lg:tracking-[0.2em] truncate max-w-[80px] lg:max-w-none">
-                千尋 v2.6
+            <div className="flex items-center gap-2.5">
+              <div className="w-2.5 h-2.5 bg-rose-600 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.4)]"></div>
+              <span className="text-slate-900 text-[10px] lg:text-xs font-black uppercase tracking-[0.2em]">
+                千尋 V2.6
               </span>
             </div>
             <div className="hidden sm:block h-4 w-px bg-slate-200"></div>
-            <h2 className="hidden sm:block text-slate-800 font-black text-xs lg:text-sm tracking-tight">
-              {activeTab.toUpperCase()}
+            <h2 className="hidden sm:block text-slate-500 font-bold text-xs uppercase tracking-widest">
+              {activeTab}
             </h2>
           </div>
           
-          <div className="flex items-center gap-3 lg:gap-4">
-              <div className="text-right hidden sm:block">
-                <p className="text-[10px] lg:text-xs font-black text-slate-800 tracking-tight leading-none">Dispatcher CHIHIRO</p>
-                <p className="text-[8px] lg:text-[9px] font-black text-rose-400 uppercase tracking-widest mt-1">Kaohsiung HUB</p>
+          <div className="flex items-center gap-4">
+              <div className="text-right hidden md:block">
+                <p className="text-xs font-black text-slate-800 tracking-tight leading-none uppercase">Dispatch Center</p>
+                <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] mt-1.5">KHH HUB</p>
               </div>
-              <div className="w-10 h-10 lg:w-12 h-12 rounded-xl lg:rounded-2xl bg-white p-0.5 lg:p-1 shadow-md lg:shadow-xl border border-slate-100">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Chihiro&backgroundColor=ffdfbf" alt="avatar" className="w-full h-full rounded-lg lg:rounded-[0.8rem] bg-rose-50" />
+              <div className="w-10 h-10 lg:w-12 h-12 rounded-xl lg:rounded-2xl bg-white p-0.5 shadow-md border border-slate-100">
+                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Chihiro&backgroundColor=ffdfbf`} alt="avatar" className="w-full h-full rounded-lg lg:rounded-[0.9rem] bg-rose-50" />
               </div>
           </div>
         </header>

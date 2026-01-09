@@ -8,97 +8,119 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
-  const menuItems = [
-    { section: '主控與派遣', items: [
-      { id: 'client', label: '立即叫車', icon: 'fa-mobile-screen-button' },
-      { id: 'dispatch', label: '派單中心', icon: 'fa-paper-plane' },
-      { id: 'map', label: '即時地圖', icon: 'fa-map-location-dot' },
-    ]},
-    { section: '營運管理', items: [
-      { id: 'dashboard', label: '數據概況', icon: 'fa-chart-pie' },
-      { id: 'reports', label: '統計報表', icon: 'fa-file-contract' },
-      { id: 'wallet', label: '司機錢包', icon: 'fa-wallet' },
-    ]},
-    { section: '系統模擬', items: [
-      { id: 'driver', label: '司機任務箱', icon: 'fa-steering-wheel' },
-      { id: 'line', label: 'LINE 自動化', icon: 'fa-robot' },
-      { id: 'settings', label: '計費設定', icon: 'fa-gear' },
-    ]}
+  const menuGroups = [
+    {
+      title: '營運核心',
+      items: [
+        { id: 'client', label: '立即叫車', icon: 'fa-mobile-screen' },
+        { id: 'dispatch', label: '派單中心', icon: 'fa-paper-plane' },
+        { id: 'map', label: '即時地圖', icon: 'fa-map-location-dot' },
+      ]
+    },
+    {
+      title: '管理與統計',
+      items: [
+        { id: 'dashboard', label: '營運總覽', icon: 'fa-chart-pie' },
+        { id: 'reports', label: '統計報表', icon: 'fa-file-invoice-dollar' },
+        { id: 'wallet', label: '財務錢包', icon: 'fa-wallet' },
+      ]
+    },
+    {
+      title: '系統整合',
+      items: [
+        { id: 'line', label: 'LINE 機器人', icon: 'fa-robot' },
+        { id: 'driver', label: '模擬終端', icon: 'fa-steering-wheel' },
+        { id: 'settings', label: '費率設定', icon: 'fa-sliders' },
+      ]
+    },
+    {
+      title: '正式上線規劃',
+      items: [
+        { id: 'roadmap', label: '營運藍圖', icon: 'fa-road-circle-check' },
+        { id: 'database', label: '資料庫設計', icon: 'fa-database' },
+      ]
+    }
   ];
 
   const handleSelect = (id: string) => {
     setActiveTab(id);
-    setIsOpen(false);
+    if (window.innerWidth < 1024) setIsOpen(false);
   };
 
   return (
     <>
-      {/* Mobile Backdrop */}
+      {/* Mobile Overlay */}
       <div 
-        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] transition-opacity duration-300 md:hidden ${
-          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] transition-opacity duration-300 lg:hidden ${
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setIsOpen(false)}
       />
 
-      {/* Sidebar Container */}
-      <div className={`fixed left-0 top-0 h-screen bg-slate-900 text-white flex-col z-[100] transition-transform duration-500 ease-out w-72 md:w-64 md:translate-x-0 ${
+      {/* Main Sidebar */}
+      <aside className={`fixed left-0 top-0 h-screen bg-slate-900 text-slate-300 w-72 lg:w-64 z-[110] flex flex-col transition-transform duration-500 ease-in-out lg:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
-      } flex`}>
+      }`}>
         
-        {/* Logo Section */}
-        <div className="p-6 lg:p-8 flex items-center justify-between border-b border-slate-800">
+        {/* Brand Section */}
+        <div className="p-8 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-rose-600 rounded-xl flex items-center justify-center shadow-lg shadow-rose-500/20 rotate-3">
-              <i className="fas fa-heart text-white text-xl"></i>
+            <div className="w-10 h-10 bg-rose-600 rounded-xl flex items-center justify-center shadow-lg shadow-rose-600/20">
+              <i className="fas fa-heart text-white text-lg"></i>
             </div>
             <div>
-              <h1 className="font-black text-xl leading-tight tracking-tight">千尋派車</h1>
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Kaohsiung HUB</p>
+              <h1 className="text-white font-black text-xl tracking-tight leading-none">千尋派車</h1>
+              <span className="text-[10px] font-black text-slate-500 tracking-widest uppercase mt-1 block">Dispatch Pro</span>
             </div>
           </div>
-          <button onClick={() => setIsOpen(false)} className="md:hidden w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
-            <i className="fas fa-times"></i>
+          <button onClick={() => setIsOpen(false)} className="lg:hidden text-slate-500">
+            <i className="fas fa-xmark text-xl"></i>
           </button>
         </div>
-        
-        {/* Navigation */}
-        <nav className="flex-1 mt-6 px-4 overflow-y-auto custom-scrollbar">
-          {menuItems.map((group, idx) => (
-            <div key={idx} className="mb-6">
-              <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">{group.section}</p>
-              {group.items.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleSelect(item.id)}
-                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl mb-1.5 transition-all duration-300 ${
-                    activeTab === item.id 
-                      ? 'bg-rose-600 text-white shadow-xl shadow-rose-500/30 translate-x-1' 
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                  }`}
-                >
-                  <i className={`fas ${item.icon} w-5 text-center text-sm`}></i>
-                  <span className="font-bold text-sm">{item.label}</span>
-                  {activeTab === item.id && <i className="fas fa-chevron-right ml-auto text-[10px] opacity-50"></i>}
-                </button>
-              ))}
+
+        {/* Navigation Section */}
+        <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
+          {menuGroups.map((group, idx) => (
+            <div key={idx}>
+              <h3 className="px-4 text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mb-4">
+                {group.title}
+              </h3>
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelect(item.id)}
+                    className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all group ${
+                      activeTab === item.id 
+                        ? 'bg-rose-600 text-white shadow-xl shadow-rose-600/20' 
+                        : 'hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <i className={`fas ${item.icon} w-5 text-center text-sm ${
+                      activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-rose-400'
+                    }`}></i>
+                    <span>{item.label}</span>
+                    {activeTab === item.id && (
+                      <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full"></div>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           ))}
         </nav>
 
-        {/* System Info Foot */}
-        <div className="p-6">
-          <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-800">
+        {/* System Footer */}
+        <div className="p-6 border-t border-slate-800 bg-slate-900/50">
+          <div className="bg-slate-800/40 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">系統雲端節點</span>
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+              <span className="text-[10px] font-black text-slate-400 uppercase">主線伺服器</span>
             </div>
-            <p className="text-[11px] text-slate-300 font-bold opacity-80 leading-tight">
-              KHH-HUB-MAIN-01
-            </p>
+            <p className="text-[11px] font-mono text-slate-500">KHH-MAIN-NODE-01</p>
           </div>
         </div>
-      </div>
+      </aside>
     </>
   );
 };
