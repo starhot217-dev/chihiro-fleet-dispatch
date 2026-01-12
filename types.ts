@@ -1,10 +1,15 @@
 
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  DRIVER = 'DRIVER'
+}
+
 export enum OrderStatus {
-  PENDING = 'PENDING',    // 等待派單
-  DISPATCHING = 'DISPATCHING', // 正在 LINE 群組派發
-  ASSIGNED = 'ASSIGNED',   // 司機已接單
-  PICKING_UP = 'PICKING_UP', // 前往接送中
-  IN_TRANSIT = 'IN_TRANSIT', // 行程中
+  PENDING = 'PENDING',    
+  DISPATCHING = 'DISPATCHING', 
+  ASSIGNED = 'ASSIGNED',   
+  PICKING_UP = 'PICKING_UP', 
+  IN_TRANSIT = 'IN_TRANSIT', 
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED'
 }
@@ -16,29 +21,46 @@ export enum VehicleType {
   TRUCK = 'TRUCK'
 }
 
+export interface PricingPlan {
+  id: string;
+  name: string;
+  baseFare: number;
+  perKm: number;
+  perMinute: number;
+  nightSurcharge: number;
+}
+
 export interface Vehicle {
   id: string;
   plateNumber: string;
   type: VehicleType;
+  color: string;
   driverName: string;
   driverPhone: string;
   status: 'IDLE' | 'BUSY' | 'OFFLINE';
   location: { lat: number; lng: number };
   lastUpdate: string;
-  walletBalance: number; // 司機儲值金餘額
+  walletBalance: number;
 }
 
 export interface Order {
   id: string;
+  displayId: string;
   clientName: string;
   clientPhone: string;
   pickup: string;
-  destination: string;
+  destination?: string;
   status: OrderStatus;
   vehicleId?: string;
+  driverName?: string;
+  acceptedGroup?: string;
+  planId: string;
+  planName: string;
   createdAt: string;
+  startTime?: string;
+  endTime?: string;
   price: number;
-  commission?: number; // 平台抽成金額
+  commission?: number;
   note?: string;
 }
 
@@ -48,6 +70,15 @@ export interface LineLog {
   message: string;
   type: 'OUTGOING' | 'INCOMING';
   groupName: string;
+  senderName?: string;
+  isFlexMessage?: boolean;
+}
+
+export interface LineGroup {
+  id: string;
+  name: string;
+  region: string;
+  isActive: boolean;
 }
 
 export interface WalletLog {

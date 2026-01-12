@@ -1,101 +1,90 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { PricingPlan } from '../types';
+import { DataService } from '../services/dataService';
 
-interface PricingConfig {
-  baseFare: number;
-  perKm: number;
-  perMinute: number;
-  nightSurcharge: number;
-}
-
-interface SettingsProps {
-  config: PricingConfig;
-  onSave: (config: PricingConfig) => void;
-}
-
-const Settings: React.FC<SettingsProps> = ({ config, onSave }) => {
-  const [localConfig, setLocalConfig] = useState(config);
+const Settings: React.FC = () => {
+  const [plans, setPlans] = useState<PricingPlan[]>([]);
+  const [activePlanId, setActivePlanId] = useState('default');
   const [saved, setSaved] = useState(false);
 
+  useEffect(() => {
+    setPlans(DataService.getPricingPlans());
+  }, []);
+
+  const activePlan = plans.find(p => p.id === activePlanId) || plans[0];
+
+  const updateActivePlan = (field: keyof PricingPlan, value: string) => {
+    // 允許空字串以便用戶刪除數字重新輸入，儲存時再轉為數字
+    const numValue = value === '' ? 0 : parseInt(value, 10);
+    const updatedPlans = plans.map(p => p.id === activePlanId ? { ...p, [field]: numValue } : p);
+    setPlans(updatedPlans);
+  };
+
   const handleSave = () => {
-    onSave(localConfig);
+    DataService.savePricingPlans(plans);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
+  if (plans.length === 0) return null;
+
   return (
-    <div className="p-8 max-w-2xl mx-auto space-y-8">
+    <div className="p-8 max-w-4xl mx-auto space-y-8">
       <div>
-        <h2 className="text-3xl font-black text-slate-800 tracking-tight">系統計費設定</h2>
-        <p className="text-slate-500 font-medium mt-1">調整派車系統的全球計費標準</p>
+        <h2 className="text-3xl font-black text-slate-800 tracking-tight">系統計費管理</h2>
+        <p className="text-slate-500 font-medium mt-1">針對不同客群設定專屬計費方案，支援 0 費率設定</p>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">起步價 (Base Fare)</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">$</span>
-              <input 
-                type="number"
-                value={localConfig.baseFare}
-                onChange={(e) => setLocalConfig({...localConfig, baseFare: parseInt(e.target.value)})}
-                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl pl-10 pr-4 py-4 text-lg font-black text-slate-700 focus:border-indigo-600 focus:bg-white outline-none transition-all"
-              />
-            </div>
-          </div>
+      {/* Plan Tabs */}
+      <div className="flex bg-slate-100 p-2 rounded-[2rem] gap-2">
+        {plans.map(p => (
+          <button
+            key={p.id}
+            onClick={() => setActivePlanId(p.id)}
+            className={`flex-1 py-4 rounded-[1.5rem] font-black text-sm transition-all ${
+              activePlanId === p.id 
+                ? 'bg-white text-rose-600 shadow-sm' 
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            {p.name}
+          </button>
+        ))}
+      </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">每公里里程費 (Per KM)</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">$</span>
-              <input 
-                type="number"
-                value={localConfig.perKm}
-                onChange={(e) => setLocalConfig({...localConfig, perKm: parseInt(e.target.value)})}
-                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl pl-10 pr-4 py-4 text-lg font-black text-slate-700 focus:border-indigo-600 focus:bg-white outline-none transition-all"
-              />
-            </div>
+      <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 space-y-8 animate-in fade-in duration-300">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center text-xl">
+             <i className="fas fa-file-invoice-dollar"></i>
           </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">每分鐘等待費 (Per Minute)</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">$</span>
-              <input 
-                type="number"
-                value={localConfig.perMinute}
-                onChange={(e) => setLocalConfig({...localConfig, perMinute: parseInt(e.target.value)})}
-                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl pl-10 pr-4 py-4 text-lg font-black text-slate-700 focus:border-indigo-600 focus:bg-white outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">夜間加成 (Night Surcharge)</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">$</span>
-              <input 
-                type="number"
-                value={localConfig.nightSurcharge}
-                onChange={(e) => setLocalConfig({...localConfig, nightSurcharge: parseInt(e.target.value)})}
-                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl pl-10 pr-4 py-4 text-lg font-black text-slate-700 focus:border-indigo-600 focus:bg-white outline-none transition-all"
-              />
-            </div>
+          <div>
+            <h3 className="text-xl font-black text-slate-800">編輯方案：{activePlan.name}</h3>
+            <p className="text-slate-400 text-xs font-bold">當前 ID: {activePlan.id}</p>
           </div>
         </div>
 
-        <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100 flex items-start gap-4">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shrink-0">
-            <i className="fas fa-info-circle"></i>
-          </div>
-          <div>
-            <p className="text-sm font-bold text-indigo-900">計費公式說明</p>
-            <p className="text-xs text-indigo-700 mt-1 leading-relaxed">
-              預估總金額 = 起步價 + (預估公里數 × 里程費) + (預估時間 × 等待費) + 夜間加成(如適用)。
-              系統會根據 Google Maps 偵測的即時路徑進行自動計算。
-            </p>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {[
+            { label: '起步價 (Base Fare)', key: 'baseFare' },
+            { label: '每公里里程費 (Per KM)', key: 'perKm' },
+            { label: '每分鐘等待費 (Per Minute)', key: 'perMinute' },
+            { label: '夜間加成 (Night Surcharge)', key: 'nightSurcharge' }
+          ].map((field) => (
+            <div key={field.key} className="space-y-2">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">$</span>
+                <input 
+                  type="number"
+                  value={activePlan[field.key as keyof PricingPlan] || ''}
+                  onChange={(e) => updateActivePlan(field.key as keyof PricingPlan, e.target.value)}
+                  className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl pl-10 pr-4 py-4 text-lg font-black text-slate-700 focus:border-rose-500 focus:bg-white outline-none transition-all"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          ))}
         </div>
 
         <button 
@@ -105,35 +94,11 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave }) => {
           }`}
         >
           {saved ? (
-            <><i className="fas fa-check"></i> 設定已儲存</>
+            <><i className="fas fa-check"></i> 全部方案已儲存</>
           ) : (
-            <><i className="fas fa-save"></i> 儲存計費設定</>
+            <><i className="fas fa-save"></i> 儲存所有費率變更</>
           )}
         </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
-          <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-4">
-            <i className="fas fa-clock"></i>
-          </div>
-          <h4 className="font-bold text-slate-800">夜間時段</h4>
-          <p className="text-xs text-slate-400 mt-1">23:00 - 06:00</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-4">
-            <i className="fas fa-percent"></i>
-          </div>
-          <h4 className="font-bold text-slate-800">平台服務費</h4>
-          <p className="text-xs text-slate-400 mt-1">固定 15%</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
-          <div className="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mb-4">
-            <i className="fas fa-gas-pump"></i>
-          </div>
-          <h4 className="font-bold text-slate-800">燃油附加費</h4>
-          <p className="text-xs text-slate-400 mt-1">當前暫不收費</p>
-        </div>
       </div>
     </div>
   );

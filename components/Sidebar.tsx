@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface SidebarProps {
@@ -10,11 +11,18 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
   const menuGroups = [
     {
+      title: '系統導覽',
+      items: [
+        { id: 'guide', label: '運作流程圖', icon: 'fa-route' },
+      ]
+    },
+    {
       title: '營運核心',
       items: [
         { id: 'client', label: '立即叫車', icon: 'fa-mobile-screen' },
         { id: 'dispatch', label: '派單中心', icon: 'fa-paper-plane' },
         { id: 'map', label: '即時地圖', icon: 'fa-map-location-dot' },
+        { id: 'switchboard', label: '智能總機', icon: 'fa-headset' }, // 新增
       ]
     },
     {
@@ -49,7 +57,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, setI
 
   return (
     <>
-      {/* Mobile Overlay */}
       <div 
         className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] transition-opacity duration-300 lg:hidden ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -57,12 +64,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, setI
         onClick={() => setIsOpen(false)}
       />
 
-      {/* Main Sidebar */}
       <aside className={`fixed left-0 top-0 h-screen bg-slate-900 text-slate-300 w-72 lg:w-64 z-[110] flex flex-col transition-transform duration-500 ease-in-out lg:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        
-        {/* Brand Section */}
         <div className="p-8 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-rose-600 rounded-xl flex items-center justify-center shadow-lg shadow-rose-600/20">
@@ -78,7 +82,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, setI
           </button>
         </div>
 
-        {/* Navigation Section */}
         <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
           {menuGroups.map((group, idx) => (
             <div key={idx}>
@@ -110,14 +113,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, setI
           ))}
         </nav>
 
-        {/* System Footer */}
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
           <div className="bg-slate-800/40 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-              <span className="text-[10px] font-black text-slate-400 uppercase">主線伺服器</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase">AI 助手已就緒</span>
             </div>
-            <p className="text-[11px] font-mono text-slate-500">KHH-MAIN-NODE-01</p>
+            <p className="text-[11px] font-mono text-slate-500">KHH-AI-CENTRAL</p>
           </div>
         </div>
       </aside>

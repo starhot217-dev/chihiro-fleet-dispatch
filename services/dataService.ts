@@ -1,15 +1,42 @@
-import { Order, Vehicle, OrderStatus, WalletLog } from '../types';
+
+import { Order, Vehicle, OrderStatus, WalletLog, LineGroup, PricingPlan } from '../types';
 import { INITIAL_ORDERS, MOCK_VEHICLES } from '../constants';
 
 const STORAGE_KEYS = {
   ORDERS: 'chihiro_orders',
   VEHICLES: 'chihiro_vehicles',
-  PRICING: 'chihiro_pricing',
-  WALLET_LOGS: 'chihiro_wallet_logs'
+  PRICING: 'chihiro_pricing_v2',
+  WALLET_LOGS: 'chihiro_wallet_logs',
+  GROUPS: 'chihiro_line_groups'
 };
 
+const DEFAULT_GROUPS: LineGroup[] = [
+  { id: 'GRP_01', name: '高雄核心司機大群', region: '高雄', isActive: true },
+  { id: 'GRP_02', name: '鳳山/鳥松支援群', region: '鳳山', isActive: true },
+  { id: 'GRP_03', name: '左營/楠梓特約群', region: '左營', isActive: true }
+];
+
+const INITIAL_PRICING_PLANS: PricingPlan[] = [
+  { id: 'default', name: '預設方案', baseFare: 100, perKm: 25, perMinute: 5, nightSurcharge: 50 },
+  { id: 'driver_return', name: '司機百回', baseFare: 100, perKm: 15, perMinute: 0, nightSurcharge: 20 },
+  { id: 'store_booking', name: '店家叫車', baseFare: 80, perKm: 20, perMinute: 3, nightSurcharge: 30 }
+];
+
 export const DataService = {
-  // --- 訂單資料庫 ---
+  resetData: () => {
+    localStorage.removeItem(STORAGE_KEYS.ORDERS);
+    localStorage.removeItem(STORAGE_KEYS.VEHICLES);
+    localStorage.removeItem(STORAGE_KEYS.WALLET_LOGS);
+    localStorage.removeItem(STORAGE_KEYS.PRICING);
+    localStorage.removeItem(STORAGE_KEYS.GROUPS);
+    window.location.reload();
+  },
+
+  getGroups: (): LineGroup[] => {
+    const saved = localStorage.getItem(STORAGE_KEYS.GROUPS);
+    return saved ? JSON.parse(saved) : DEFAULT_GROUPS;
+  },
+
   getOrders: (): Order[] => {
     const saved = localStorage.getItem(STORAGE_KEYS.ORDERS);
     return saved ? JSON.parse(saved) : INITIAL_ORDERS;
@@ -26,14 +53,13 @@ export const DataService = {
     return order;
   },
 
-  updateOrderStatus: (orderId: string, status: OrderStatus, vehicleId?: string) => {
+  updateOrderStatus: (orderId: string, status: OrderStatus, details?: Partial<Order>) => {
     const orders = DataService.getOrders();
-    const updated = orders.map(o => o.id === orderId ? { ...o, status, ...(vehicleId ? { vehicleId } : {}) } : o);
+    const updated = orders.map(o => o.id === orderId ? { ...o, status, ...details } : o);
     DataService.saveOrders(updated);
     return updated;
   },
 
-  // --- 財務流水資料庫 ---
   getWalletLogs: (vehicleId?: string): WalletLog[] => {
     const saved = localStorage.getItem(STORAGE_KEYS.WALLET_LOGS);
     const logs = saved ? JSON.parse(saved) : [];
@@ -51,7 +77,6 @@ export const DataService = {
     localStorage.setItem(STORAGE_KEYS.WALLET_LOGS, JSON.stringify([newLog, ...logs]));
   },
 
-  // --- 核心業務邏輯：結案扣款 ---
   completeOrderAndDeduct: (orderId: string, commissionRate: number = 0.15) => {
     const orders = DataService.getOrders();
     const orderIndex = orders.findIndex(o => o.id === orderId);
@@ -67,20 +92,14 @@ export const DataService = {
     if (vIndex === -1) return { success: false, message: '找不到執行司機' };
     
     const vehicle = vehicles[vIndex];
-    if (vehicle.walletBalance < commission) {
-      return { success: false, message: `司機 ${vehicle.driverName} 儲值金不足 ($${vehicle.walletBalance})，無法支付服務費 $${commission}` };
-    }
-
-    // 1. 執行扣款
     const newBalance = vehicle.walletBalance - commission;
+    
     vehicles[vIndex] = { ...vehicle, status: 'IDLE', walletBalance: newBalance };
     DataService.saveVehicles(vehicles);
 
-    // 2. 更新訂單
     orders[orderIndex] = { ...order, status: OrderStatus.COMPLETED, commission };
     DataService.saveOrders(orders);
 
-    // 3. 紀錄流水
     DataService.addWalletLog({
       vehicleId: vehicle.id,
       amount: -commission,
@@ -91,7 +110,6 @@ export const DataService = {
     return { success: true, commission, newBalance };
   },
 
-  // --- 車輛與錢包管理 ---
   getVehicles: (): Vehicle[] => {
     const saved = localStorage.getItem(STORAGE_KEYS.VEHICLES);
     return saved ? JSON.parse(saved) : MOCK_VEHICLES;
@@ -105,17 +123,10 @@ export const DataService = {
     const vehicles = DataService.getVehicles();
     const idx = vehicles.findIndex(v => v.id === vehicleId);
     if (idx === -1) return vehicles;
-    
     const newBalance = vehicles[idx].walletBalance + amount;
     vehicles[idx].walletBalance = newBalance;
     DataService.saveVehicles(vehicles);
-    
-    DataService.addWalletLog({
-      vehicleId,
-      amount,
-      type: 'TOPUP'
-    }, newBalance);
-    
+    DataService.addWalletLog({ vehicleId, amount, type: 'TOPUP' }, newBalance);
     return vehicles;
   },
 
@@ -126,17 +137,17 @@ export const DataService = {
     return updated;
   },
 
-  getPricing: () => {
+  getPricingPlans: (): PricingPlan[] => {
     const saved = localStorage.getItem(STORAGE_KEYS.PRICING);
-    return saved ? JSON.parse(saved) : {
-      baseFare: 100,
-      perKm: 25,
-      perMinute: 5,
-      nightSurcharge: 50
-    };
+    return saved ? JSON.parse(saved) : INITIAL_PRICING_PLANS;
   },
 
-  savePricing: (config: any) => {
-    localStorage.setItem(STORAGE_KEYS.PRICING, JSON.stringify(config));
+  savePricingPlans: (plans: PricingPlan[]) => {
+    localStorage.setItem(STORAGE_KEYS.PRICING, JSON.stringify(plans));
+  },
+
+  getPricing: () => {
+    const plans = DataService.getPricingPlans();
+    return plans.find(p => p.id === 'default') || plans[0];
   }
 };

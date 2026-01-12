@@ -1,7 +1,6 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Chat } from "@google/genai";
 
-// Always use the process.env.API_KEY directly for initializing the GoogleGenAI client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeFleetPerformance = async (data: any) => {
@@ -30,7 +29,6 @@ export const analyzeFleetPerformance = async (data: any) => {
         }
       }
     });
-    // The response.text property returns the extracted string output. Do not call as a method.
     return JSON.parse(response.text || '[]');
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
@@ -40,4 +38,25 @@ export const analyzeFleetPerformance = async (data: any) => {
       { insight: "跨區訂單在週末晚間有明顯增長趨勢", impact: "建議調度策略調整為長途優先，提升司機單趟利潤與回頭率" }
     ];
   }
+};
+
+/**
+ * 建立總機聊天對話
+ */
+export const startSwitchboardChat = (systemContext: any): Chat => {
+  return ai.chats.create({
+    model: 'gemini-3-flash-preview',
+    config: {
+      systemInstruction: `你是「千尋派車系統」的智能總機助手。
+你的目標是協助系統管理員與調度員處理業務問題。
+你有權限存取當前系統的部分情境數據：${JSON.stringify(systemContext)}。
+
+規則：
+1. 請始終使用「繁體中文（台灣繁體）」進行對答。
+2. 保持專業、冷靜且有幫助的語氣。
+3. 如果被問到如何優化費率，請根據數據給予具體數值建議。
+4. 如果被問到關於高雄的地理，請展現出你對高雄區域（鳳山、左營、三民等）的了解。
+5. 回答應盡量精簡有力，必要時使用條列式。`,
+    },
+  });
 };
