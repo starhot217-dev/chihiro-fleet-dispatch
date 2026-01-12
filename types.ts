@@ -1,4 +1,11 @@
 
+// Add global type definitions for external APIs (Google Maps, etc.)
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
 export enum UserRole {
   ADMIN = 'ADMIN',
   DRIVER = 'DRIVER'

@@ -17,6 +17,7 @@ import CentralSwitchboard from './components/CentralSwitchboard';
 import LoginGate from './components/LoginGate';
 import DriverPortal from './components/DriverPortal';
 import { DataService } from './services/dataService';
+import { estimateRealMileage } from './services/geographyService';
 import { Order, OrderStatus, LineLog, Vehicle, LineGroup, PricingPlan, UserRole } from './types';
 
 const App: React.FC = () => {
@@ -65,11 +66,11 @@ ${order.note || '【車上禁菸、禁檳榔】'}
       displayId: generateDisplayId(),
       clientName: orderData.clientName || '乘客',
       clientPhone: orderData.clientPhone || '09xx-xxx-xxx',
-      pickup: orderData.pickup || '高雄市中正二路22號',
+      pickup: orderData.pickup || '高雄市苓雅區中正二路22號',
       destination: orderData.destination, 
       status: OrderStatus.PENDING,
       planId: orderData.planId || 'default',
-      planName: orderData.planName || '預設方案',
+      planName: orderData.planName || '一般預設',
       createdAt: new Date().toLocaleString('zh-TW'),
       price: orderData.price || 0,
       note: orderData.note || '【車上禁菸、禁檳榔】'
@@ -163,7 +164,7 @@ ${order.note || '【車上禁菸、禁檳榔】'}
       pickup: '高雄軟體園區-服務大樓',
       status: OrderStatus.PENDING,
       planId: 'default',
-      planName: '預設方案',
+      planName: '一般預設',
       createdAt: new Date().toLocaleString('zh-TW'),
       price: 0,
       note: '【系統自動化壓力測試中】'
@@ -181,20 +182,51 @@ ${order.note || '【車上禁菸、禁檳榔】'}
     }, 2500);
   };
 
-  const handleStartOrder = (orderId: string, destination: string) => {
+  const handleStartOrder = async (orderId: string, destination: string) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
     
     const plans = DataService.getPricingPlans();
     const plan = plans.find(p => p.id === order.planId) || plans[0];
     
-    const mockKm = Math.max(3, (destination.length % 10) + 5);
-    const finalPrice = plan.baseFare + (mockKm * plan.perKm);
+    // 使用地理座標引擎計算「真正大約里程」
+    let realKm = estimateRealMileage(order.pickup, destination);
+    let realMins = Math.round(realKm * 2.2);
+
+    // 如果有 Google API 且運作正常才替換
+    if (window.google && window.google.maps && window.google.maps.DirectionsService) {
+      try {
+        const directionsService = new window.google.maps.DirectionsService();
+        const response = await new Promise<any>((resolve, reject) => {
+          directionsService.route({
+            origin: order.pickup,
+            destination: destination,
+            travelMode: window.google.maps.TravelMode.DRIVING
+          }, (result: any, status: any) => {
+            if (status === 'OK') resolve(result);
+            else reject(status);
+          });
+        });
+        
+        realKm = Number((response.routes[0].legs[0].distance.value / 1000).toFixed(1));
+        realMins = Math.ceil(response.routes[0].legs[0].duration.value / 60);
+      } catch (err) {
+        console.warn("Google Maps Route failed, using Geo Engine.");
+      }
+    }
+
+    const finalPrice = Math.round(
+      plan.baseFare + 
+      (realKm * plan.perKm) + 
+      (realMins * plan.perMinute) + 
+      (plan.nightSurcharge || 0)
+    );
     
     DataService.updateOrderStatus(orderId, OrderStatus.IN_TRANSIT, {
       destination,
       price: finalPrice,
-      startTime: new Date().toLocaleString('zh-TW')
+      startTime: new Date().toLocaleString('zh-TW'),
+      note: `${order.note || ''} (真正約估: ${realKm}km / 15% 抽成結算中)`
     });
     setOrders(DataService.getOrders());
   };
@@ -208,7 +240,7 @@ ${order.note || '【車上禁菸、禁檳榔】'}
   };
 
   const handleDownloadWhitepaper = () => {
-    alert("正在為您產生「千尋派車系統技術白皮書」...\n\n包含：\n- LINE 機器人自動化協議\n- 智慧多方案計費引擎\n- AI 總機調度邏輯\n- 報表統計與財務分析模組\n\n文件已準備就緒。");
+    alert("技術白皮書產製中...");
     window.print();
   };
 
@@ -244,17 +276,14 @@ ${order.note || '【車上禁菸、禁檳榔】'}
              </div>
              <div className="space-y-6">
                 <div className="p-6 bg-rose-50 rounded-3xl border border-rose-100">
-                  <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-3">當前標準輸出樣板 (Chihiro Format)</p>
+                  <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-3">當前標準輸出樣板</p>
                   <pre className="text-xs font-mono text-slate-600 bg-white p-4 rounded-xl border border-rose-100/50 leading-relaxed whitespace-pre-wrap">
 {`千尋 ❤️20260112.00014❤️-千尋(主) SUDU
 車輛預估 6~10 分鐘到達
 駕駛:米修
 車色:白
 車號:AHX-7515
-方案:預設方案
---------------------------
-備註:
-【車上禁菸、禁檳榔】
+方案:一般預設
 --------------------------
 上車:高雄市苓雅區中正二路22號
 回傳給客戶_`}
@@ -300,25 +329,16 @@ ${order.note || '【車上禁菸、禁檳榔】'}
               </button>
             )}
             <div className="flex items-center gap-4">
-              <span className="text-rose-600 font-black text-xs lg:text-sm uppercase tracking-widest hidden sm:block">Chihiro Fleet Dispatch</span>
+              <span className="text-rose-600 font-black text-xs lg:text-sm uppercase tracking-widest hidden sm:block">Chihiro Dispatch</span>
               <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
               <h2 className="text-slate-500 font-bold text-xs uppercase">
-                {userRole === UserRole.DRIVER ? '司機終端工作台' : activeTab}
+                {userRole === UserRole.DRIVER ? '司機工作台' : activeTab}
               </h2>
             </div>
           </div>
           <div className="flex items-center gap-4">
-             <div className="text-right hidden sm:block">
-               <p className="text-[10px] font-black text-slate-400 leading-none mb-1">{userRole === UserRole.DRIVER ? 'DRIVER NODE' : 'ADMIN NODE'}</p>
-               <p className="text-xs font-black text-slate-800">
-                  {userRole === UserRole.DRIVER ? '米修 (AHX-7515)' : '系統總管理員'}
-               </p>
-             </div>
-             <button 
-               onClick={() => {setUserRole(null); setActiveTab('guide');}}
-               className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-white p-0.5 shadow-md border border-slate-100 hover:scale-110 transition-transform"
-             >
-               <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userRole === UserRole.DRIVER ? '米修' : 'Admin'}&backgroundColor=ffdfbf`} className="w-full h-full rounded-[0.9rem]" />
+             <button onClick={() => {setUserRole(null); setActiveTab('guide');}} className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-white p-0.5 shadow-md border border-slate-100 hover:scale-110 transition-transform overflow-hidden">
+               <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userRole === UserRole.DRIVER ? '米修' : 'Admin'}`} className="w-full h-full rounded-[0.9rem]" />
              </button>
           </div>
         </header>

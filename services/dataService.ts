@@ -5,7 +5,7 @@ import { INITIAL_ORDERS, MOCK_VEHICLES } from '../constants';
 const STORAGE_KEYS = {
   ORDERS: 'chihiro_orders',
   VEHICLES: 'chihiro_vehicles',
-  PRICING: 'chihiro_pricing_v2',
+  PRICING: 'chihiro_pricing_v3', // 升級版本以套用新費率
   WALLET_LOGS: 'chihiro_wallet_logs',
   GROUPS: 'chihiro_line_groups'
 };
@@ -16,10 +16,13 @@ const DEFAULT_GROUPS: LineGroup[] = [
   { id: 'GRP_03', name: '左營/楠梓特約群', region: '左營', isActive: true }
 ];
 
+// 根據需求設定預設費率
+// 起步價 50, 每公里 20, 每分鐘 5
 const INITIAL_PRICING_PLANS: PricingPlan[] = [
-  { id: 'default', name: '預設方案', baseFare: 100, perKm: 25, perMinute: 5, nightSurcharge: 50 },
-  { id: 'driver_return', name: '司機百回', baseFare: 100, perKm: 15, perMinute: 0, nightSurcharge: 20 },
-  { id: 'store_booking', name: '店家叫車', baseFare: 80, perKm: 20, perMinute: 3, nightSurcharge: 30 }
+  { id: 'default', name: '一般預設', baseFare: 50, perKm: 20, perMinute: 5, nightSurcharge: 0 },
+  { id: 'driver_return', name: '司機百回 (+10)', baseFare: 60, perKm: 20, perMinute: 5, nightSurcharge: 0 },
+  { id: 'store_booking', name: '店家預設 (+30)', baseFare: 80, perKm: 20, perMinute: 5, nightSurcharge: 0 },
+  { id: 'night_mode', name: '夜間加成方案', baseFare: 50, perKm: 20, perMinute: 5, nightSurcharge: 50 }
 ];
 
 export const DataService = {

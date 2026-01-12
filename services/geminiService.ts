@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type, Chat } from "@google/genai";
 
+// Always initialize with apiKey in a named parameter
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeFleetPerformance = async (data: any) => {
@@ -29,6 +30,7 @@ export const analyzeFleetPerformance = async (data: any) => {
         }
       }
     });
+    // Use .text property directly (not a method)
     return JSON.parse(response.text || '[]');
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
@@ -41,22 +43,26 @@ export const analyzeFleetPerformance = async (data: any) => {
 };
 
 /**
- * 建立總機聊天對話
+ * 建立總機聊天對話 (整合地圖與搜尋工具)
+ * Maps grounding is supported specifically in Gemini 2.5 series models.
  */
 export const startSwitchboardChat = (systemContext: any): Chat => {
   return ai.chats.create({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-2.5-flash', // Updated to gemini-2.5-flash for Maps grounding support
     config: {
-      systemInstruction: `你是「千尋派車系統」的智能總機助手。
-你的目標是協助系統管理員與調度員處理業務問題。
-你有權限存取當前系統的部分情境數據：${JSON.stringify(systemContext)}。
+      systemInstruction: `你是「千尋派車系統」的智能調度總機。
+你的目標是協助管理員解決調度、費率、或是地理位置查詢問題。
+你有權限存取系統數據：${JSON.stringify(systemContext)}。
 
-規則：
-1. 請始終使用「繁體中文（台灣繁體）」進行對答。
-2. 保持專業、冷靜且有幫助的語氣。
-3. 如果被問到如何優化費率，請根據數據給予具體數值建議。
-4. 如果被問到關於高雄的地理，請展現出你對高雄區域（鳳山、左營、三民等）的了解。
-5. 回答應盡量精簡有力，必要時使用條列式。`,
+功能：
+1. 你可以搜尋 Google Maps 來定位地標或建議司機休息站。
+2. 你可以搜尋網頁來查詢當前的高雄路況或活動。
+3. 始終使用「繁體中文（台灣繁體）」。
+4. 回答應精簡有力，若使用了地圖資訊，請告知用戶你已標記位置。`,
+      tools: [
+        { googleMaps: {} },
+        { googleSearch: {} }
+      ]
     },
   });
 };
