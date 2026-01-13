@@ -30,14 +30,18 @@ const CentralSwitchboard: React.FC<CentralSwitchboardProps> = ({ orders, vehicle
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<any>(null);
 
+  // 初始化對話，僅在重要統計數據發生較大變化時重置，而非每秒
   useEffect(() => {
-    const context = {
-      activeOrdersCount: orders.length,
-      onlineVehiclesCount: vehicles.filter(v => v.status !== 'OFFLINE').length,
-      recentOrders: orders.slice(0, 3).map(o => ({ id: o.displayId, pickup: o.pickup }))
-    };
-    chatSessionRef.current = startSwitchboardChat(context);
-  }, [orders, vehicles]);
+    // 只有當 session 不存在，或這是一個全新的組件實例時初始化
+    if (!chatSessionRef.current) {
+      const context = {
+        activeOrdersCount: orders.length,
+        onlineVehiclesCount: vehicles.filter(v => v.status !== 'OFFLINE').length,
+        recentOrders: orders.slice(0, 3).map(o => ({ id: o.displayId, pickup: o.pickup }))
+      };
+      chatSessionRef.current = startSwitchboardChat(context);
+    }
+  }, []); // 僅執行一次，保持對話連續性
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -95,7 +99,7 @@ const CentralSwitchboard: React.FC<CentralSwitchboardProps> = ({ orders, vehicle
       setMessages(prev => [...prev, {
         id: 'err-' + Date.now(),
         role: 'assistant',
-        content: '抱歉，地圖通訊似乎受到干擾 (InvalidKeyMapError)。請確認調度員金鑰權限。',
+        content: '抱歉，地圖通訊似乎受到干擾 (429/Quota)。請確認 API 額度或稍後再試。',
         timestamp: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
       }]);
     } finally {
@@ -152,6 +156,15 @@ const CentralSwitchboard: React.FC<CentralSwitchboardProps> = ({ orders, vehicle
             </div>
           </div>
         ))}
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="bg-white p-4 rounded-full border border-slate-100 shadow-sm flex gap-1">
+              <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce"></div>
+              <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+              <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+            </div>
+          </div>
+        )}
         <div ref={chatEndRef} />
       </div>
 
