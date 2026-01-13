@@ -1,46 +1,55 @@
 
 import React from 'react';
+import { UserRole } from '../types';
 
 interface SidebarProps {
+  role: UserRole;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
-  const menuGroups = [
+const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, setActiveTab, isOpen, setIsOpen }) => {
+  const allGroups = [
+    {
+      title: '系統商管理 (Vendor)',
+      roles: [UserRole.SYSTEM_VENDOR],
+      items: [
+        { id: 'settings', label: '全域系統配置', icon: 'fa-gears' },
+        { id: 'db-schema', label: '資料庫架構管理', icon: 'fa-database' },
+        { id: 'blueprint', label: '開發進度藍圖', icon: 'fa-map' },
+      ]
+    },
     {
       title: '營運核心',
+      roles: [UserRole.SYSTEM_VENDOR, UserRole.ADMIN, UserRole.CS],
       items: [
         { id: 'dashboard', label: '營運總覽', icon: 'fa-chart-pie' },
-        { id: 'dispatch', label: '派單中心', icon: 'fa-paper-plane' },
-        { id: 'map', label: '即時地圖', icon: 'fa-map-location-dot' },
+        { id: 'dispatch', label: '派單中心', icon: 'fa-paper-plane', badge: true },
+        { id: 'map', label: '即時地圖調度', icon: 'fa-map-location-dot' },
+        { id: 'line-monitor', label: 'LINE 廣播中心', icon: 'fab fa-line' },
       ]
     },
     {
-      title: '開發與實作 ( Master )',
+      title: '服務中心',
+      roles: [UserRole.SYSTEM_VENDOR, UserRole.ADMIN, UserRole.CS],
       items: [
-        { id: 'implementation', label: '系統實作全手冊', icon: 'fa-terminal' },
-        { id: 'line-prod', label: '後端 Webhook 代碼', icon: 'fa-code' },
-        { id: 'db-schema', label: 'PostGIS 資料庫', icon: 'fa-database' },
+        { id: 'cs-portal', label: '客服與 FAQ', icon: 'fa-headset' },
+        { id: 'store-mgmt', label: '特約店家管理', icon: 'fa-users-gear' },
       ]
     },
     {
-      title: '財務與報表',
+      title: '模擬與測試',
+      roles: [UserRole.SYSTEM_VENDOR, UserRole.ADMIN],
       items: [
-        { id: 'reports', label: '數據統計報表', icon: 'fa-file-invoice-dollar' },
-        { id: 'wallet', label: '司機錢包儲值', icon: 'fa-wallet' },
-      ]
-    },
-    {
-      title: '系統配置',
-      items: [
-        { id: 'store-mgmt', label: '店家管理', icon: 'fa-users-gear' },
-        { id: 'settings', label: '計費費率設定', icon: 'fa-sliders' },
+        { id: 'client-booking', label: '客戶端模擬叫車', icon: 'fa-user-tag' },
+        { id: 'driver-sim', label: '司機終端模擬', icon: 'fa-mobile-screen-button' },
       ]
     }
   ];
+
+  const filteredGroups = allGroups.filter(g => g.roles.includes(role));
 
   const handleSelect = (id: string) => {
     setActiveTab(id);
@@ -60,20 +69,34 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, setI
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
-          {menuGroups.map((group, idx) => (
+          {filteredGroups.map((group, idx) => (
             <div key={idx}>
-              <h3 className="px-4 text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4">{group.title}</h3>
+              <h3 className="px-4 text-[10px] font-black text-slate-600 uppercase tracking-widest mb-3">{group.title}</h3>
               <div className="space-y-1">
                 {group.items.map((item) => (
-                  <button key={item.id} onClick={() => handleSelect(item.id)} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeTab === item.id ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/40' : 'hover:bg-slate-800'}`}>
-                    <i className={`fas ${item.icon} w-5 text-center`}></i>
-                    <span>{item.label}</span>
+                  <button key={item.id} onClick={() => handleSelect(item.id)} className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeTab === item.id ? 'bg-rose-600 text-white shadow-lg' : 'hover:bg-slate-800'}`}>
+                    <div className="flex items-center gap-4">
+                      <i className={`fas ${item.icon} w-5 text-center`}></i>
+                      <span>{item.label}</span>
+                    </div>
+                    {item.badge && <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>}
                   </button>
                 ))}
               </div>
             </div>
           ))}
         </nav>
+        <div className="p-6 border-t border-slate-800">
+           <div className="bg-slate-800/50 rounded-2xl p-4 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-rose-600/20 text-rose-500 flex items-center justify-center text-xs">
+                <i className="fas fa-shield-halved"></i>
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Current Role</p>
+                <p className="text-[11px] font-black text-white truncate uppercase">{role}</p>
+              </div>
+           </div>
+        </div>
       </aside>
     </>
   );

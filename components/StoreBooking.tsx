@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DataService } from '../services/dataService';
 import { Store, Order, OrderStatus } from '../types';
@@ -12,10 +11,14 @@ const StoreBooking: React.FC = () => {
   const [isBooking, setIsBooking] = useState(false);
   const [estimate, setEstimate] = useState<{ price: number, km: number, kickback: number } | null>(null);
 
+  // Corrected async fetching of stores
   useEffect(() => {
-    const s = DataService.getStores();
-    setStores(s);
-    if (s.length > 0) setSelectedStoreId(s[0].id);
+    const loadStores = async () => {
+      const s = await DataService.getStores();
+      setStores(s);
+      if (s.length > 0) setSelectedStoreId(s[0].id);
+    };
+    loadStores();
   }, []);
 
   useEffect(() => {
@@ -26,7 +29,6 @@ const StoreBooking: React.FC = () => {
   useEffect(() => {
     if (pickupAddr && destAddr && destAddr.length > 2) {
       const km = estimateRealMileage(pickupAddr, destAddr);
-      // Fixed: DataService doesn't have getPricing, use getPricingPlans()[0]
       const pricing = DataService.getPricingPlans()[0];
       const min = Math.round(km * 2.2);
       

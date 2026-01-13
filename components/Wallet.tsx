@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Vehicle, WalletLog } from '../types';
 import { DataService } from '../services/dataService';
@@ -12,13 +11,30 @@ const Wallet: React.FC<WalletProps> = ({ vehicles: propsVehicles, onTopUp }) => 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [topUpAmount, setTopUpAmount] = useState(500);
   const [vehicles, setVehicles] = useState<Vehicle[]>(propsVehicles);
+  const [history, setHistory] = useState<WalletLog[]>([]);
 
+  // Corrected async fetching of vehicles
   useEffect(() => {
-    setVehicles(DataService.getVehicles());
+    const loadVehicles = async () => {
+      setVehicles(await DataService.getVehicles());
+    };
+    loadVehicles();
   }, [propsVehicles]);
 
   const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
-  const history = selectedVehicle ? DataService.getWalletLogs(selectedVehicle.id) : [];
+  
+  // Corrected async fetching of wallet logs
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (selectedVehicleId) {
+        const logs = await DataService.getWalletLogs(selectedVehicleId);
+        setHistory(logs);
+      } else {
+        setHistory([]);
+      }
+    };
+    fetchHistory();
+  }, [selectedVehicleId, vehicles]);
 
   const handleTopUpClick = () => {
     if (selectedVehicleId) {

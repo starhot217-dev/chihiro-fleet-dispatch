@@ -8,37 +8,73 @@ interface LoginGateProps {
 
 const LoginGate: React.FC<LoginGateProps> = ({ onSelectRole }) => {
   return (
-    <div className="fixed inset-0 bg-slate-50 flex items-center justify-center p-6 z-[1000]">
-      <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="text-center md:text-left flex flex-col justify-center space-y-4 md:pr-10">
-          <div className="w-16 h-16 bg-rose-600 rounded-3xl flex items-center justify-center text-white text-3xl shadow-2xl shadow-rose-200 mx-auto md:mx-0">
+    <div className="fixed inset-0 bg-slate-50 flex items-center justify-center p-6 z-[1000] overflow-y-auto">
+      <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-2 gap-12 py-12">
+        <div className="text-center md:text-left flex flex-col justify-center space-y-6 md:pr-10">
+          <div className="w-20 h-20 bg-rose-600 rounded-[2rem] flex items-center justify-center text-white text-4xl shadow-2xl shadow-rose-200 mx-auto md:mx-0 animate-bounce">
             <i className="fas fa-heart"></i>
           </div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">千尋派車系統</h1>
-          <p className="text-slate-500 font-medium">請選擇您的身份進入調度中心或司機工作台</p>
+          <div>
+            <h1 className="text-5xl font-black text-slate-900 tracking-tighter mb-4">千尋派車系統</h1>
+            <p className="text-slate-500 font-medium text-lg">Chihiro Intelligent Fleet Management</p>
+          </div>
+          <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-2">
+             <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">系統聲明</p>
+             <p className="text-xs text-slate-400 leading-relaxed font-bold">目前為「生產環境開發模擬 (Dev-Production)」，所有操作將即時同步於瀏覽器緩存，金鑰設置將永久儲存。</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
           <button 
-            onClick={() => onSelectRole(UserRole.ADMIN)}
-            className="group bg-slate-900 p-8 rounded-[2.5rem] text-left hover:scale-[1.02] transition-all shadow-xl hover:shadow-2xl border border-white/10"
+            onClick={() => onSelectRole(UserRole.SYSTEM_VENDOR)}
+            className="group bg-rose-600 p-6 rounded-[2.5rem] text-left hover:scale-[1.02] transition-all shadow-xl shadow-rose-100"
           >
-            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white mb-6 group-hover:bg-rose-600 transition-colors">
-              <i className="fas fa-user-shield"></i>
+            <div className="flex items-center gap-6">
+               <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-white text-xl"><i className="fas fa-gears"></i></div>
+               <div>
+                  <h3 className="text-white text-xl font-black mb-1">系統平台開發商 (Vendor)</h3>
+                  <p className="text-rose-100 text-[10px] font-bold uppercase tracking-widest">全權限管理 • API 配置 • 核心架構</p>
+               </div>
             </div>
-            <h3 className="text-white text-xl font-black mb-2">系統管理員</h3>
-            <p className="text-slate-400 text-xs font-medium leading-relaxed">管理全局派單、費率設定、財務結算與營運大數據分析。</p>
+          </button>
+
+          <button 
+            onClick={() => onSelectRole(UserRole.ADMIN)}
+            className="group bg-slate-900 p-6 rounded-[2.5rem] text-left hover:scale-[1.02] transition-all shadow-xl"
+          >
+            <div className="flex items-center gap-6">
+               <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-white text-xl"><i className="fas fa-user-shield"></i></div>
+               <div>
+                  <h3 className="text-white text-xl font-black mb-1">車隊營運管理員 (Admin)</h3>
+                  <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">派單中心 • 財務對帳 • 地圖調度</p>
+               </div>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => onSelectRole(UserRole.CS)}
+            className="group bg-white p-6 rounded-[2.5rem] text-left hover:scale-[1.02] transition-all shadow-xl border border-slate-100"
+          >
+            <div className="flex items-center gap-6">
+               <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 text-xl group-hover:bg-indigo-500 group-hover:text-white transition-all"><i className="fas fa-headset"></i></div>
+               <div>
+                  <h3 className="text-slate-900 text-xl font-black mb-1">客服專員 (CS)</h3>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">FAQ 管理 • 用戶支援 • 即時諮詢</p>
+               </div>
+            </div>
           </button>
 
           <button 
             onClick={() => onSelectRole(UserRole.DRIVER)}
-            className="group bg-white p-8 rounded-[2.5rem] text-left hover:scale-[1.02] transition-all shadow-xl hover:shadow-2xl border border-slate-100"
+            className="group bg-white p-6 rounded-[2.5rem] text-left hover:scale-[1.02] transition-all shadow-xl border border-slate-100"
           >
-            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 mb-6 group-hover:bg-[#00b900] group-hover:text-white transition-colors">
-              <i className="fas fa-steering-wheel"></i>
+            <div className="flex items-center gap-6">
+               <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 text-xl group-hover:bg-emerald-500 group-hover:text-white transition-all"><i className="fas fa-steering-wheel"></i></div>
+               <div>
+                  <h3 className="text-slate-900 text-xl font-black mb-1">合作司機 (Driver Portal)</h3>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">即時搶單 • 個人錢包 • 行程回報</p>
+               </div>
             </div>
-            <h3 className="text-slate-900 text-xl font-black mb-2">合作司機</h3>
-            <p className="text-slate-500 text-xs font-medium leading-relaxed">即時接單、查看個人錢包、計算單趟里程與個人業績統計。</p>
           </button>
         </div>
       </div>

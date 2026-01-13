@@ -1,115 +1,190 @@
 
 import React, { useState, useEffect } from 'react';
-import { PricingPlan } from '../types';
+import { SystemConfig } from '../types';
 import { DataService } from '../services/dataService';
+import { SupabaseService } from '../services/supabaseService';
 
 const Settings: React.FC = () => {
-  const [plans, setPlans] = useState<PricingPlan[]>([]);
-  const [activePlanId, setActivePlanId] = useState('default');
-  const [saved, setSaved] = useState(false);
+  const [config, setConfig] = useState<SystemConfig>(DataService.getConfig());
+  const [supabaseKey, setSupabaseKey] = useState(config.dbKey || '');
+  const [isTesting, setIsTesting] = useState(false);
+  const [connStatus, setConnStatus] = useState<'IDLE' | 'SUCCESS' | 'FAIL'>('IDLE');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
   useEffect(() => {
-    setPlans(DataService.getPricingPlans());
-  }, []);
+    if (config.dbKey) setSupabaseKey(config.dbKey);
+  }, [config.dbKey]);
 
-  const activePlan = plans.find(p => p.id === activePlanId) || plans[0];
-
-  const updateActivePlan = (field: keyof PricingPlan, value: any) => {
-    const updatedPlans = plans.map(p => p.id === activePlanId ? { ...p, [field]: value } : p);
-    setPlans(updatedPlans);
+  const handleTestSupabase = async () => {
+    if (!config.dbHost || !supabaseKey) {
+      alert('請輸入完整的 Supabase URL 與 API Key');
+      return;
+    }
+    setIsTesting(true);
+    const ok = await SupabaseService.testConnection(config.dbHost || '', supabaseKey);
+    setConnStatus(ok ? 'SUCCESS' : 'FAIL');
+    setIsTesting(false);
+    
+    if (ok) {
+       // 測試成功即暫存
+       const updated = { ...config, dbHost: config.dbHost, dbKey: supabaseKey, dbStatus: 'CONNECTED' as const };
+       await DataService.saveConfig(updated);
+       setConfig(updated);
+       alert('連線測試成功！金鑰已自動保存。');
+    }
   };
 
-  const handleSave = () => {
-    DataService.savePricingPlans(plans);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSaveAll = async () => {
+    setIsSaving(true);
+    // 彙整目前畫面上所有的輸入內容
+    const finalConfig: SystemConfig = { 
+      ...config, 
+      dbKey: supabaseKey,
+      // 確保這些關鍵欄位不為空時才更新
+      googleMapsApiKey: config.googleMapsApiKey,
+      lineAccessToken: config.lineAccessToken,
+      linePrimaryGroupId: config.linePrimaryGroupId
+    };
+    
+    await DataService.saveConfig(finalConfig);
+    setConfig(finalConfig);
+    
+    setTimeout(() => {
+      setIsSaving(false);
+      setShowSaveSuccess(true);
+      setTimeout(() => setShowSaveSuccess(false), 3000);
+    }, 800);
   };
-
-  if (plans.length === 0) return null;
 
   return (
-    <div className="p-4 lg:p-10 max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500">
-      <div className="flex justify-between items-end">
+    <div className="p-4 lg:p-10 max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500 pb-32">
+      <header className="flex justify-between items-start">
         <div>
-          <h2 className="text-3xl font-black text-slate-800 tracking-tight">派遣規則與費率</h2>
-          <p className="text-slate-500 font-medium mt-1">設定 15秒派遣、等客 5分鐘與司機懲罰機制</p>
+          <h2 className="text-4xl font-black text-slate-800 tracking-tight">系統連線配置 (Production)</h2>
+          <p className="text-slate-500 font-medium mt-1">金鑰將安全儲存於本地快取中，重整不消失。</p>
         </div>
-      </div>
-
-      <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 p-8 lg:p-12 space-y-12 relative overflow-hidden">
-        
-        {/* 基本資費與等待費 */}
-        <section className="space-y-6">
-          <h3 className="text-lg font-black text-slate-800 border-l-4 border-rose-500 pl-4 uppercase tracking-widest">計費規則</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">超時等待費 (每分鐘)</label>
-              <div className="relative">
-                <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-rose-500 text-xl">$</span>
-                <input 
-                  type="number"
-                  value={activePlan.waitingFeePerMin}
-                  onChange={(e) => updateActivePlan('waitingFeePerMin', parseInt(e.target.value) || 0)}
-                  className="w-full bg-white border-2 border-slate-100 rounded-2xl pl-12 pr-5 py-5 text-2xl font-black text-slate-700 outline-none"
-                />
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium italic">等客超過 5 分鐘後，每分鐘累計的金額</p>
-            </div>
-            
-            <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">標準車資 (每人)</label>
-              <div className="relative">
-                <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-rose-500 text-xl">$</span>
-                <input 
-                  type="number"
-                  value={activePlan.baseFare}
-                  onChange={(e) => updateActivePlan('baseFare', parseInt(e.target.value) || 0)}
-                  className="w-full bg-white border-2 border-slate-100 rounded-2xl pl-12 pr-5 py-5 text-2xl font-black text-slate-700 outline-none"
-                />
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium italic">派單系統預設每人 400 元</p>
-            </div>
+        {showSaveSuccess && (
+          <div className="bg-emerald-500 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-xl animate-in slide-in-from-right-4 flex items-center gap-2">
+            <i className="fas fa-check-circle"></i> 設定已成功儲存
           </div>
-        </section>
+        )}
+      </header>
 
-        {/* 順序派遣與停權機制 */}
-        <section className="space-y-6">
-          <h3 className="text-lg font-black text-slate-800 border-l-4 border-amber-500 pl-4 uppercase tracking-widest">派遣與懲罰機制</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">未接單停權門檻 (次數)</label>
-              <input 
-                type="number"
-                value={activePlan.maxMissesBeforeSuspension}
-                onChange={(e) => updateActivePlan('maxMissesBeforeSuspension', parseInt(e.target.value) || 0)}
-                className="w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-5 text-2xl font-black text-slate-700 outline-none"
-              />
-              <p className="text-[10px] text-slate-400 font-medium italic">內群 15 秒未接單累計達此數值則暫時停權</p>
-            </div>
-            
-            <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">停權時數 (小時)</label>
-              <input 
-                type="number"
-                value={activePlan.suspensionHours}
-                onChange={(e) => updateActivePlan('suspensionHours', parseInt(e.target.value) || 0)}
-                className="w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-5 text-2xl font-black text-slate-700 outline-none"
-              />
-              <p className="text-[10px] text-slate-400 font-medium italic">懲罰期間該司機將無法接收任何指派任務</p>
-            </div>
+      <div className="grid grid-cols-1 gap-8">
+        {/* Supabase */}
+        <section className="bg-white rounded-[3rem] shadow-xl border border-slate-100 p-8 lg:p-12 space-y-8 relative overflow-hidden">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
+               <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
+                 <i className="fas fa-database"></i>
+               </div>
+               Supabase 雲端資料庫
+            </h3>
+            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+              config.dbStatus === 'CONNECTED' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'
+            }`}>
+              {config.dbStatus}
+            </span>
           </div>
-        </section>
 
-        <div className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Project URL</label>
+                <input 
+                  type="text"
+                  placeholder="https://your-project.supabase.co"
+                  value={config.dbHost}
+                  onChange={e => setConfig({...config, dbHost: e.target.value})}
+                  className="w-full bg-slate-50 border-2 border-transparent focus:border-emerald-500 rounded-2xl px-6 py-4 text-xs font-mono outline-none transition-all shadow-inner"
+                />
+             </div>
+             <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Anon API Key</label>
+                <input 
+                  type="password"
+                  placeholder="貼入 Supabase 公鑰"
+                  value={supabaseKey}
+                  onChange={e => setSupabaseKey(e.target.value)}
+                  className="w-full bg-slate-50 border-2 border-transparent focus:border-emerald-500 rounded-2xl px-6 py-4 text-xs font-mono outline-none transition-all shadow-inner"
+                />
+             </div>
+          </div>
+
           <button 
-            onClick={handleSave}
-            className={`w-full py-6 rounded-[2.5rem] font-black text-xl shadow-2xl transition-all flex items-center justify-center gap-4 active:scale-95 ${
-              saved ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'
+            onClick={handleTestSupabase}
+            disabled={isTesting}
+            className={`w-full py-5 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-3 ${
+              connStatus === 'SUCCESS' ? 'bg-emerald-600 text-white shadow-emerald-200 shadow-xl' : 'bg-slate-900 text-white hover:bg-black'
             }`}
           >
-            {saved ? <><i className="fas fa-check-circle"></i> 設定已生效</> : <><i className="fas fa-save"></i> 儲存規則設定</>}
+            {isTesting ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-plug"></i>}
+            {connStatus === 'SUCCESS' ? '連線測試成功' : '測試 Supabase 連線'}
           </button>
-        </div>
+        </section>
+
+        {/* Google Maps & LINE */}
+        <section className="bg-white rounded-[3rem] shadow-xl border border-slate-100 p-8 lg:p-12 space-y-10">
+           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
+              <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
+                <i className="fas fa-key"></i>
+              </div>
+              外部服務 API 與 群組 ID
+           </h3>
+           
+           <div className="space-y-8">
+              <div className="space-y-2">
+                 <div className="flex justify-between items-center px-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Google Maps API Key (必填，地圖才可顯示)</label>
+                   {config.googleMapsApiKey && <span className="text-[9px] text-emerald-500 font-bold italic">已保存資料</span>}
+                 </div>
+                 <input 
+                    type="password"
+                    placeholder="貼入 Google Maps API 金鑰"
+                    value={config.googleMapsApiKey}
+                    onChange={e => setConfig({...config, googleMapsApiKey: e.target.value})}
+                    className="w-full bg-slate-50 border-2 border-transparent focus:border-rose-500 rounded-2xl px-6 py-5 text-xs font-mono outline-none transition-all shadow-inner"
+                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">LINE Messaging Token</label>
+                    <input 
+                      type="password"
+                      placeholder="LINE Access Token"
+                      value={config.lineAccessToken}
+                      onChange={e => setConfig({...config, lineAccessToken: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-transparent focus:border-[#00b900] rounded-2xl px-6 py-5 text-xs font-mono outline-none transition-all shadow-inner"
+                    />
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">LINE Primary Group ID</label>
+                    <input 
+                      type="text"
+                      placeholder="例如: G_CORE_KHH_001"
+                      value={config.linePrimaryGroupId}
+                      onChange={e => setConfig({...config, linePrimaryGroupId: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-transparent focus:border-[#00b900] rounded-2xl px-6 py-5 text-xs font-mono outline-none transition-all shadow-inner"
+                    />
+                 </div>
+              </div>
+           </div>
+
+           <div className="pt-6">
+              <button 
+                onClick={handleSaveAll}
+                disabled={isSaving}
+                className={`w-full py-6 rounded-[2.5rem] font-black text-xl shadow-2xl transition-all flex items-center justify-center gap-4 ${
+                  isSaving ? 'bg-slate-200 text-slate-400' : 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200'
+                }`}
+              >
+                {isSaving ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>}
+                {isSaving ? '正在保存到快取...' : '確認並儲存所有金鑰配置'}
+              </button>
+              <p className="text-center text-[10px] text-slate-400 font-bold mt-4 uppercase tracking-[0.2em]">系統將自動記錄您的輸入，重整頁面不需重填。</p>
+           </div>
+        </section>
       </div>
     </div>
   );

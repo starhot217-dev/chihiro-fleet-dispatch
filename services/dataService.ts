@@ -1,143 +1,118 @@
 
-import { Order, OrderStatus, Vehicle, DriverPriority, Store, PricingPlan, WalletLog } from '../types';
+import { Order, OrderStatus, Vehicle, SystemConfig, WalletLog, LineLog, FAQItem, Store } from '../types';
 import { INITIAL_ORDERS, MOCK_VEHICLES } from '../constants';
 
 const STORAGE_KEYS = {
-  ORDERS: 'chihiro_fleet_orders_v8',
-  VEHICLES: 'chihiro_fleet_vehicles_v8',
-  STORES: 'chihiro_fleet_stores_v8',
-  PLANS: 'chihiro_fleet_plans_v8',
-  WALLET_LOGS: 'chihiro_fleet_wallet_logs_v8'
+  ORDERS: 'chihiro_fleet_orders_v12',
+  VEHICLES: 'chihiro_fleet_vehicles_v12',
+  CONFIG: 'chihiro_fleet_config_v12',
+  LINE_LOGS: 'chihiro_fleet_line_logs_v12',
+  WALLET_LOGS: 'chihiro_fleet_wallet_logs_v12',
+  FAQ_STATS: 'chihiro_fleet_faq_stats_v12',
+  STORES: 'chihiro_fleet_stores_v12'
 };
 
+const DEFAULT_FAQS: FAQItem[] = [
+  { id: '1', question: '司機如何儲值？', answer: '請聯繫管理員，或前往司機工作台點擊錢包圖示產出匯款虛擬帳號。', clickCount: 15, category: 'FINANCE' },
+  { id: '2', question: '忘記 LINE 群組 ID 怎麼辦？', answer: '請在 LINE 群組輸入 /id 機器人會自動回覆，或在後台系統配置查看。', clickCount: 8, category: 'SYSTEM' },
+  { id: '3', question: '派單倒數結束沒人接怎麼辦？', answer: '系統會自動跳轉至下一位權重最高的司機，或您可以點擊手動廣播。', clickCount: 22, category: 'DRIVER' },
+  { id: '4', question: '抽成費用如何計算？', answer: '目前系統預設抽成率為 15%，計算公式：車資 x 0.15。', clickCount: 40, category: 'FINANCE' }
+];
+
+const DEFAULT_STORES: Store[] = [
+  { id: 'S1', name: '好心情洗車場', contact: '07-1234567', kickbackBase: 10, unpaidKickback: 150, totalTrips: 45 },
+  { id: 'S2', name: '漢神本館', contact: '07-8889999', kickbackBase: 15, unpaidKickback: 0, totalTrips: 120 }
+];
+
 export const DataService = {
-  getOrders: (): Order[] => {
+  getConfig: (): SystemConfig => {
+    const saved = localStorage.getItem(STORAGE_KEYS.CONFIG);
+    const defaultConfig: SystemConfig = {
+      id: 'primary',
+      appName: '千尋派車系統',
+      lineAccessToken: '',
+      lineSecret: '',
+      linePrimaryGroupId: 'G_CORE_KHH_001',
+      linePartnerGroupId: 'G_PARTNER_KHH_002',
+      googleMapsApiKey: '',
+      dispatchIntervalSec: 15,
+      freeWaitingMin: 5,
+      commissionRate: 0.15,
+      dbStatus: 'DISCONNECTED',
+      dbHost: '',
+      dbKey: ''
+    };
+    if (!saved) return defaultConfig;
+    try {
+      return { ...defaultConfig, ...JSON.parse(saved) };
+    } catch (e) {
+      return defaultConfig;
+    }
+  },
+
+  saveConfig: async (config: SystemConfig) => {
+    localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
+    window.dispatchEvent(new Event('systemConfigUpdated'));
+  },
+
+  getOrders: async (): Promise<Order[]> => {
     const saved = localStorage.getItem(STORAGE_KEYS.ORDERS);
     return saved ? JSON.parse(saved) : INITIAL_ORDERS;
   },
-
-  getVehicles: (): Vehicle[] => {
-    const saved = localStorage.getItem(STORAGE_KEYS.VEHICLES);
-    return saved ? JSON.parse(saved) : MOCK_VEHICLES.map(v => ({ 
-      ...v, 
-      priority: v.id === 'V4' ? DriverPriority.PARTNER : DriverPriority.INTERNAL, 
-      status: 'ONLINE' 
-    }));
+  
+  saveOrders: async (orders: Order[]) => {
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
   },
 
-  saveOrders: (orders: Order[]) => localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders)),
-  saveVehicles: (vs: Vehicle[]) => localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(vs)),
-
-  getStores: (): Store[] => {
-    const saved = localStorage.getItem(STORAGE_KEYS.STORES);
-    return saved ? JSON.parse(saved) : [
-      { id: 'ST-001', name: '漢神巨蛋百貨', contact: '07-111222', kickbackBase: 15, unpaidKickback: 450, totalTrips: 30 },
-      { id: 'ST-002', name: '義大世界大飯店', contact: '07-333444', kickbackBase: 20, unpaidKickback: 1200, totalTrips: 60 },
-    ];
-  },
-
-  saveStores: (stores: Store[]) => localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores)),
-
-  updateKickbackPaid: (id: string) => {
-    const stores = DataService.getStores();
-    const idx = stores.findIndex(s => s.id === id);
-    if (idx !== -1) {
-      stores[idx].unpaidKickback = 0;
-      DataService.saveStores(stores);
-    }
-  },
-
-  getPricingPlans: (): PricingPlan[] => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PLANS);
-    return saved ? JSON.parse(saved) : [
-      { 
-        id: 'default', 
-        name: '預設方案', 
-        baseFare: 150, 
-        perKm: 30, 
-        perMinute: 5, 
-        waitingFeePerMin: 10,
-        maxMissesBeforeSuspension: 3,
-        suspensionHours: 2
-      }
-    ];
-  },
-
-  savePricingPlans: (plans: PricingPlan[]) => localStorage.setItem(STORAGE_KEYS.PLANS, JSON.stringify(plans)),
-
-  getWalletLogs: (vehicleId: string): WalletLog[] => {
-    const saved = localStorage.getItem(`${STORAGE_KEYS.WALLET_LOGS}_${vehicleId}`);
-    return saved ? JSON.parse(saved) : [];
-  },
-
-  saveWalletLogs: (vehicleId: string, logs: WalletLog[]) => {
-    localStorage.setItem(`${STORAGE_KEYS.WALLET_LOGS}_${vehicleId}`, JSON.stringify(logs));
-  },
-
-  getEligibleDrivers: (pickupCoords: {lat: number, lng: number}) => {
-    const vehicles = DataService.getVehicles();
-    return vehicles
-      .filter(v => v.status === 'ONLINE')
-      .map(v => {
-        const dist = Math.sqrt(
-          Math.pow(v.location.lat - pickupCoords.lat, 2) + 
-          Math.pow(v.location.lng - pickupCoords.lng, 2)
-        ) * 111; 
-        return { ...v, distanceToPickup: dist };
-      })
-      .filter(v => (v.distanceToPickup || 0) < 10) // 擴大範圍至 10km
-      .sort((a, b) => {
-        if (a.priority !== b.priority) {
-          return a.priority === DriverPriority.INTERNAL ? -1 : 1;
-        }
-        return (a.distanceToPickup || 0) - (b.distanceToPickup || 0);
-      });
-  },
-
-  createOrder: (data: Partial<Order>) => {
-    const orders = DataService.getOrders();
-    const newOrder: Order = {
-      id: `ORD-${Date.now()}`,
-      displayId: `❤️${new Date().toISOString().slice(0,10).replace(/-/g,'')}.${Math.floor(Math.random()*999)}❤️`,
-      status: OrderStatus.PENDING,
-      currentDriverIndex: 0,
-      dispatchCountdown: 15,
-      priority: DriverPriority.INTERNAL,
-      baseFare: 150,
-      distanceFare: 0,
-      timeFare: 0,
-      waitingFee: 0,
-      price: 150,
-      systemFee: 0,
-      createdAt: new Date().toISOString(),
-      passengerCount: 1,
-      clientName: '匿名客戶',
-      clientPhone: '09xx',
-      pickup: '未知地點',
-      ...data
-    } as Order;
-    const updated = [newOrder, ...orders];
-    DataService.saveOrders(updated);
-    return newOrder;
-  },
-
-  updateOrder: (id: string, updates: Partial<Order>) => {
-    const orders = DataService.getOrders();
+  updateOrder: async (id: string, updates: Partial<Order>) => {
+    const orders = await DataService.getOrders();
     const idx = orders.findIndex(o => o.id === id);
     if (idx !== -1) {
       orders[idx] = { ...orders[idx], ...updates };
-      DataService.saveOrders(orders);
+      await DataService.saveOrders(orders);
     }
   },
 
-  updateVehicleWallet: (vId: string, amount: number) => {
-    const vs = DataService.getVehicles();
+  // Added createOrder to handle new order creation
+  createOrder: async (orderData: Partial<Order>): Promise<Order> => {
+    const orders = await DataService.getOrders();
+    const newOrder: Order = {
+      id: `ORD-${Date.now()}`,
+      displayId: `❤️${new Date().getFullYear()}.NEW.${Math.floor(Math.random() * 1000)}❤️`,
+      status: OrderStatus.PENDING,
+      createdAt: new Date().toLocaleString(),
+      price: 0,
+      systemFee: 0,
+      waitingFee: 0,
+      distanceFare: 0,
+      timeFare: 0,
+      baseFare: 150,
+      clientName: '新客戶',
+      clientPhone: '09xx',
+      pickup: '未知地點',
+      ...orderData
+    };
+    const updated = [newOrder, ...orders];
+    await DataService.saveOrders(updated);
+    return newOrder;
+  },
+
+  getVehicles: async (): Promise<Vehicle[]> => {
+    const saved = localStorage.getItem(STORAGE_KEYS.VEHICLES);
+    return saved ? JSON.parse(saved) : MOCK_VEHICLES;
+  },
+
+  saveVehicles: async (vs: Vehicle[]) => {
+    localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(vs));
+  },
+
+  updateVehicleWallet: async (vId: string, amount: number) => {
+    const vs = await DataService.getVehicles();
     const idx = vs.findIndex(v => v.id === vId);
     if (idx !== -1) {
       vs[idx].walletBalance += amount;
-      DataService.saveVehicles(vs);
-      
-      const logs = DataService.getWalletLogs(vId);
+      await DataService.saveVehicles(vs);
+      const logs = JSON.parse(localStorage.getItem(`${STORAGE_KEYS.WALLET_LOGS}_${vId}`) || '[]');
       logs.unshift({
         id: `LOG-${Date.now()}`,
         amount,
@@ -145,23 +120,82 @@ export const DataService = {
         timestamp: new Date().toLocaleString(),
         balanceAfter: vs[idx].walletBalance
       });
-      DataService.saveWalletLogs(vId, logs);
+      localStorage.setItem(`${STORAGE_KEYS.WALLET_LOGS}_${vId}`, JSON.stringify(logs));
     }
   },
 
+  // Added getWalletLogs to fix type error in Wallet component
+  getWalletLogs: async (vehicleId: string): Promise<WalletLog[]> => {
+    return JSON.parse(localStorage.getItem(`${STORAGE_KEYS.WALLET_LOGS}_${vehicleId}`) || '[]');
+  },
+
+  getFaqs: (): FAQItem[] => {
+    const saved = localStorage.getItem(STORAGE_KEYS.FAQ_STATS);
+    const data: FAQItem[] = saved ? JSON.parse(saved) : DEFAULT_FAQS;
+    return data.sort((a, b) => b.clickCount - a.clickCount);
+  },
+
+  recordFaqClick: (id: string) => {
+    const faqs = DataService.getFaqs();
+    const idx = faqs.findIndex(f => f.id === id);
+    if (idx !== -1) {
+      faqs[idx].clickCount += 1;
+      localStorage.setItem(STORAGE_KEYS.FAQ_STATS, JSON.stringify(faqs));
+    }
+  },
+
+  // Added getStores and saveStores to handle partner store data
+  getStores: async (): Promise<Store[]> => {
+    const saved = localStorage.getItem(STORAGE_KEYS.STORES);
+    return saved ? JSON.parse(saved) : DEFAULT_STORES;
+  },
+
+  saveStores: (stores: Store[]) => {
+    localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
+  },
+
+  // Added updateKickbackPaid to settle payments for stores
+  updateKickbackPaid: async (storeId: string) => {
+    const stores = await DataService.getStores();
+    const idx = stores.findIndex(s => s.id === storeId);
+    if (idx !== -1) {
+      stores[idx].unpaidKickback = 0;
+      DataService.saveStores(stores);
+    }
+  },
+
+  // Added getPricingPlans to provide billing calculation rates
+  getPricingPlans: () => {
+    return [{ id: 'standard', name: '標準計費', baseFare: 150, perKm: 25, perMinute: 5 }];
+  },
+
+  broadcastToLine: (order: Order, type: string) => {
+    const logs = DataService.getLineLogs();
+    const newLog: LineLog = {
+      id: `L-${Date.now()}`,
+      senderName: '系統廣播 (模擬)',
+      timestamp: new Date().toLocaleTimeString(),
+      message: `✨ 新訂單廣播\n上車點：${order.pickup}\n預估車資：$${order.price}\n(備註：此為生產環境模擬傳送)`,
+      type: 'OUTGOING',
+      isFlexMessage: true,
+      groupName: '高雄核心群'
+    };
+    DataService.saveLineLogs([newLog, ...logs]);
+  },
+
+  getLineLogs: () => JSON.parse(localStorage.getItem(STORAGE_KEYS.LINE_LOGS) || '[]'),
+  saveLineLogs: (logs: LineLog[]) => localStorage.setItem(STORAGE_KEYS.LINE_LOGS, JSON.stringify(logs)),
+
   calculateFinalFare: (order: Order) => {
-    const distanceKm = 4.8; // 模擬
-    const durationMin = 12;
-    const distFare = distanceKm * 30;
-    const timeFare = durationMin * 5;
+    const config = DataService.getConfig();
+    const distFare = 5.2 * 30; // 模擬里程 5.2km
+    const timeFare = 15 * 5;  // 模擬時間 15min
     const total = order.baseFare + distFare + timeFare + (order.waitingFee || 0);
-    const sysFee = Math.floor(total * 0.15);
-    
     return {
       distanceFare: Math.round(distFare),
       timeFare: Math.round(timeFare),
       price: Math.round(total),
-      systemFee: sysFee
+      systemFee: Math.floor(total * config.commissionRate)
     };
   }
 };

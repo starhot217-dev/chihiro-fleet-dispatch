@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus, Vehicle, DriverPriority } from '../types';
 import { DataService } from '../services/dataService';
@@ -11,7 +10,7 @@ interface DriverPortalProps {
 const DriverPortal: React.FC<DriverPortalProps> = ({ orders, onRefresh }) => {
   // 模擬當前登入為測試司機 V2 (米修)
   const myId = 'V2'; 
-  const [myVehicle, setMyVehicle] = useState<Vehicle | undefined>(DataService.getVehicles().find(v => v.id === myId));
+  const [myVehicle, setMyVehicle] = useState<Vehicle | undefined>(undefined);
   const [destInput, setDestInput] = useState('');
   
   // 正在對我進行 15s 輪詢的訂單
@@ -23,8 +22,13 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ orders, onRefresh }) => {
     [OrderStatus.ASSIGNED, OrderStatus.ARRIVED, OrderStatus.IN_TRANSIT].includes(o.status)
   );
 
+  // Corrected async fetching of vehicles in useEffect
   useEffect(() => {
-    setMyVehicle(DataService.getVehicles().find(v => v.id === myId));
+    const loadMyVehicle = async () => {
+      const vehicles = await DataService.getVehicles();
+      setMyVehicle(vehicles.find(v => v.id === myId));
+    };
+    loadMyVehicle();
   }, [orders]);
 
   const handleAccept = () => {
